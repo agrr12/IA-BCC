@@ -70,6 +70,7 @@ def montarCaminho(estadoFinal):
 def buscaGulosa(estado, caminho=[]):
     #Condição de Parada: Posição da pessoa é igual à da Alavanca
     if estado.posicaoAlavanca == estado.posicaoPessoa:
+        caminho.append(estado)
         return caminho
     else:
         proxEstados = definirProxEstados(estado) #Define os possíveis estados seguintes
@@ -77,16 +78,54 @@ def buscaGulosa(estado, caminho=[]):
         caminho.append(estado) #Adiciona o estado atual ao caminho
         return buscaGulosa(proxEstado,caminho) #Elo recursivo para processar o próximo estado
 
-def buscaAEstreoa(estado, caminho=[], custoAcumulado=0):
+def buscaAEstrela(estado):
     #Condição de Parada: Posição da pessoa é igual à da Alavanca
     if estado.posicaoAlavanca == estado.posicaoPessoa:
-        return caminho
+        return estado
     else:
-        proxEstados = definirProxEstados(estado) #Define os possíveis estados seguintes
-        # Seleciona o estado seguinte mais próximo da alavanca (considerando o custo acumulado)
-        proxEstado = min(proxEstados, key=lambda x: x.distanciaEstadoFinal+custoAcumulado)
-        caminho.append(estado) #Adiciona o estado atual ao caminho
-        return buscaAEstreoa(proxEstado,caminho, custoAcumulado+1) #Elo recursivo para processar o próximo estado
+        estadosAVisitar = [estado]
+        while estadosAVisitar!=[]: #Laço até percorrer todos os estados possíveis
+            estadoAtual = estadosAVisitar.pop()
+            custoAcumulado=len(montarCaminho(estadoAtual))-1 #Calcula o custo acumulado até o estado atual
+            proxEstados = definirProxEstados(estadoAtual) #Define os próximos estados a partir do estado atual
+            #Seleciona a menor distância até a alavanca dentre os estados seguintes
+            maisProx = min(proxEstados, key=lambda x: x.distanciaEstadoFinal + custoAcumulado).distanciaEstadoFinal
+            for e in proxEstados: #Itera pelos próximos estados
+                if estado.posicaoAlavanca == e.posicaoPessoa:
+                    return montarCaminho(e)
+                #Se um estado está na menor distância possível (considerando o valor acumulado) até o objetivo, ele é listado para ser visitado
+                if e.distanciaEstadoFinal==maisProx and e not in estadosAVisitar:
+                    estadosAVisitar.append(e)
+
+def buscaAEstrelaAprofundamento(estado,nivelMaximo):
+    #Condição de Parada: Posição da pessoa é igual à da Alavanca
+    if estado.posicaoAlavanca == estado.posicaoPessoa:
+        return estado
+    else:
+        estadosAVisitar = [estado]
+        while estadosAVisitar!=[]: #Laço até percorrer todos os estados possíveis
+            estadoAtual = estadosAVisitar.pop()
+            custoAcumulado=len(montarCaminho(estadoAtual))-1 #Calcula o custo acumulado até o estado atual
+            #Reinicia o processo se o limite máximo foi alcançado
+            if custoAcumulado>nivelMaximo:
+                nivelMaximo+=1
+                estadosAVisitar = [estado]
+                print("a")
+                continue
+            proxEstados = definirProxEstados(estadoAtual) #Define os próximos estados a partir do estado atual
+            #Seleciona a menor distância até a alavanca dentre os estados seguintes
+            maisProx = min(proxEstados, key=lambda x: x.distanciaEstadoFinal + custoAcumulado).distanciaEstadoFinal
+            for e in proxEstados: #Itera pelos próximos estados
+                if estado.posicaoAlavanca == e.posicaoPessoa:
+                    return montarCaminho(e)
+                #Se um estado está na menor distância possível (considerando o valor acumulado) até o objetivo, ele é listado para ser visitado
+                if e.distanciaEstadoFinal==maisProx and e not in estadosAVisitar:
+                    estadosAVisitar.append(e)
+
+
+
+
 
 print(buscaGulosa(EstadoInicial))
-print(buscaAEstreoa(EstadoInicial))
+print(buscaAEstrela(EstadoInicial))
+print(buscaAEstrelaAprofundamento(EstadoInicial,1))
