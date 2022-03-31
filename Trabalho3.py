@@ -20,12 +20,6 @@ class Estado:
     def __repr__(self): #O estado é representado por ação de origem|coordenada da pessoa
         return (str(self.acao) +"|"+str(self.posicaoPessoa))
 
-
-#Criação do Estado Inicial
-alavancaPosicao = [0,0] #Coordenadas da alavanca na matriz
-pessoaPosicao = [3,3] #Coordenadas da pessoa na matriz
-EstadoInicial = Estado(pessoaPosicao,alavancaPosicao, None, 4, "Partida")
-
 ################## FUNÇÕES AUXILIARES #####################################################
 ###########################################################################################
 
