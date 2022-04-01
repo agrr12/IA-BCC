@@ -2,12 +2,14 @@ import numpy as np
 #Classe que representa estados
 #Cada estado é uma matriz possível que representa a sala, isto é, é uma matriz nxn onde 1 pessoa ocupa 1 coordenada e 1 alavanca ocupa outra
 class Estado:
-    def __init__(self, posicaoPessoa, posicaoAlavanca, estadoAnterior, dimensao):
+    def __init__(self, posicaoPessoa, posicaoAlavanca, estadoAnterior, dimensao, acao):
         self.posicaoPessoa = posicaoPessoa #posicao [x,y] da pessoa na matriz
         self.posicaoAlavanca=posicaoAlavanca #posicao [x,y] da alavanca na matriz
-        self.estadoAnterior = estadoAnterior #O estado a partir do qual
+        self.estadoAnterior = estadoAnterior #O estado a partir do qual o estado atual foi gerado
         self.dimensao = dimensao #Dimensao da sala
-        self.distanciaEstadoFinal = abs(posicaoPessoa[0]-posicaoAlavanca[0])+abs(posicaoPessoa[1]-posicaoAlavanca[1])
+        self.acao = acao #Ação que originou o estado atual
+        self.distanciaEstadoFinal = abs(posicaoPessoa[0] - posicaoAlavanca[0]) + abs(
+            posicaoPessoa[1] - posicaoAlavanca[1]) #Para Busca heurística
 
         #Construção da sala em formato de matriz
         sala = np.zeros((self.dimensao, self.dimensao), dtype=int)
@@ -15,17 +17,25 @@ class Estado:
         sala[posicaoPessoa[0]][posicaoPessoa[1]] = 7  #Na matriz, a pessoa é representada pelo numero 7
         self.matrizSala=sala
 
+    #Dois estados são iguais se as coordenadas da pessoa e da alavanca são idênticas nos dois casos
+    def __eq__(self, other):
+        if (isinstance(other, Estado)):
+            return (self.posicaoPessoa == other.posicaoPessoa) and self.posicaoAlavanca == other.posicaoAlavanca
 
-    def __repr__(self): #O estado é representado graficamente pela matriz
-       # return str(self.matrizSala)
-        return str(self.posicaoPessoa)
+    # O estado é representado por ação de origem|coordenada da pessoa
+    def __repr__(self):
+        return (str(self.acao) +"|"+str(self.posicaoPessoa))
 
+################## FUNÇÕES AUXILIARES #####################################################
+###########################################################################################
 
-#Criação do Estado Inicial
-alavancaPosicao = [2,2] #Coordenadas da alavanca na matriz
-pessoaPosicao = [8,8] #Coordenadas da pessoa na matriz
-EstadoInicial = Estado(pessoaPosicao,alavancaPosicao, None, 10)
-
+#Função auxiliar para determinar a profundidade de um determinado estado
+def contarNivel(estadoAtual, nivel=0):
+    #A função retorna do estadoAtual até o estado inicial, contando quantas etapas existem entre eles
+    if estadoAtual.estadoAnterior==None:
+        return nivel
+    else:
+        return contarNivel(estadoAtual.estadoAnterior, nivel+1)
 
 #Recebe um Estado e retorna uma lista com os movimentos possíveis a partir do estado parâmetro
 def movimentosPossiveis(estado):
@@ -45,16 +55,21 @@ def definirProxEstados(estado):
     mov = movimentosPossiveis(estado) #Estabelece os movimentos possíveis a partir do estado parâmetro
     proxEstados = [] #Vetor para armazenar os estados possíveis
     for movimento in mov: #A partir dos movimentos possíveis, determina todos os estados possíveis
+        acao = ""
         novaPosicao = estado.posicaoPessoa.copy()
         if movimento == "N":
             novaPosicao[0] -= 1
+            acao="Norte"
         elif movimento == "S":
             novaPosicao[0] += 1
+            acao = "Sul"
         elif movimento == "L":
             novaPosicao[1] += 1
+            acao = "Leste"
         elif movimento == "O":
             novaPosicao[1] -= 1
-        proxEstados.append(Estado(novaPosicao, estado.posicaoAlavanca, estado, estado.dimensao))
+            acao = "Oeste"
+        proxEstados.append(Estado(novaPosicao, estado.posicaoAlavanca, estado, estado.dimensao, acao))
     return proxEstados
 
 #Recebe o estado final encontrado após uma busca e determina o caminho feito até o estado inicial
@@ -65,67 +80,78 @@ def montarCaminho(estadoFinal):
         etapa = etapa.estadoAnterior
         caminho.append(etapa)
     return caminho[::-1] #Reverte a ordem e retorna o caminho
+###########################################################################################
 
-#algoritmo de Busca Gulosa
-def buscaGulosa(estado, caminho=[]):
-    #Condição de Parada: Posição da pessoa é igual à da Alavanca
-    if estado.posicaoAlavanca == estado.posicaoPessoa:
-        caminho.append(estado)
-        return caminho
-    else:
-        proxEstados = definirProxEstados(estado) #Define os possíveis estados seguintes
-        proxEstado = min(proxEstados, key=lambda x: x.distanciaEstadoFinal) #Seleciona o estado seguinte mais próximo da alavanca
-        caminho.append(estado) #Adiciona o estado atual ao caminho
-        return buscaGulosa(proxEstado,caminho) #Elo recursivo para processar o próximo estado
-
-def buscaAEstrela(estado):
-    #Condição de Parada: Posição da pessoa é igual à da Alavanca
-    if estado.posicaoAlavanca == estado.posicaoPessoa:
-        return estado
-    else:
-        estadosAVisitar = [estado]
-        while estadosAVisitar!=[]: #Laço até percorrer todos os estados possíveis
-            estadoAtual = estadosAVisitar.pop()
-            custoAcumulado=len(montarCaminho(estadoAtual))-1 #Calcula o custo acumulado até o estado atual
-            proxEstados = definirProxEstados(estadoAtual) #Define os próximos estados a partir do estado atual
-            #Seleciona a menor distância até a alavanca dentre os estados seguintes
-            maisProx = min(proxEstados, key=lambda x: x.distanciaEstadoFinal + custoAcumulado).distanciaEstadoFinal
-            for e in proxEstados: #Itera pelos próximos estados
-                if estado.posicaoAlavanca == e.posicaoPessoa:
-                    return montarCaminho(e)
-                #Se um estado está na menor distância possível (considerando o valor acumulado) até o objetivo, ele é listado para ser visitado
-                if e.distanciaEstadoFinal==maisProx and e not in estadosAVisitar:
-                    estadosAVisitar.append(e)
-
-def buscaAEstrelaAprofundamento(estado,nivelMaximo):
-    #Condição de Parada: Posição da pessoa é igual à da Alavanca
-    if estado.posicaoAlavanca == estado.posicaoPessoa:
-        return estado
-    else:
-        estadosAVisitar = [estado]
-        while estadosAVisitar!=[]: #Laço até percorrer todos os estados possíveis
-            estadoAtual = estadosAVisitar.pop()
-            custoAcumulado=len(montarCaminho(estadoAtual))-1 #Calcula o custo acumulado até o estado atual
-            #Reinicia o processo se o limite máximo foi alcançado
-            if custoAcumulado>nivelMaximo:
-                nivelMaximo+=1
-                estadosAVisitar = [estado]
-                print("a")
-                continue
-            proxEstados = definirProxEstados(estadoAtual) #Define os próximos estados a partir do estado atual
-            #Seleciona a menor distância até a alavanca dentre os estados seguintes
-            maisProx = min(proxEstados, key=lambda x: x.distanciaEstadoFinal + custoAcumulado).distanciaEstadoFinal
-            for e in proxEstados: #Itera pelos próximos estados
-                if estado.posicaoAlavanca == e.posicaoPessoa:
-                    return montarCaminho(e)
-                #Se um estado está na menor distância possível (considerando o valor acumulado) até o objetivo, ele é listado para ser visitado
-                if e.distanciaEstadoFinal==maisProx and e not in estadosAVisitar:
-                    estadosAVisitar.append(e)
+#algoritmo de Busca Gulosa utilizando Fila de Prioridade (Priority Queue)
+def BG (estadoInicial):
+    filaPrioridade = [estadoInicial]
+    visitados = []
+    while filaPrioridade != []:  # Laço até percorrer todos os estados possíveis
+        estadoAtual = filaPrioridade.pop(0)
+        visitados.append(estadoAtual)
+        proxEstados = definirProxEstados(estadoAtual)  # Define os próximos estados a partir do estado atual
+        # Seleciona a menor distância até a alavanca dentre os estados seguintes
+        for proxEstado in proxEstados:  # Itera pelos próximos estados
+            if proxEstado.posicaoAlavanca == proxEstado.posicaoPessoa:
+                return montarCaminho(proxEstado)
+            else:
+                if proxEstado not in visitados:
+                    filaPrioridade.append(proxEstado)
+        #Organiza a fila de prioridade colocando os mais próximos do objetivo na primeira posição
+        filaPrioridade = sorted(filaPrioridade, key=lambda x: x.distanciaEstadoFinal)[::-1]
 
 
+#Busca A*
+def buscaAEstrela(estadoInicial):
+    filaPrioridade = [estadoInicial]
+    visitados = []
+    while filaPrioridade != []:  # Laço até percorrer todos os estados possíveis
+        estadoAtual = filaPrioridade.pop(0)
+        visitados.append(estadoAtual)
+        custoAcumulado = len(montarCaminho(estadoAtual)) - 1  # Calcula o custo acumulado até o estado atual
+        proxEstados = definirProxEstados(estadoAtual)  # Define os próximos estados a partir do estado atual
+        # Seleciona a menor distância até a alavanca dentre os estados seguintes
+        for proxEstado in proxEstados:  # Itera pelos próximos estados
+            if proxEstado.posicaoAlavanca == proxEstado.posicaoPessoa:
+                return montarCaminho(proxEstado)
+            else:
+                if proxEstado not in visitados:
+                    filaPrioridade.append(proxEstado)
+        #Organiza a fila de prioridade colocando os mais próximos do objetivo na primeira posição (considerando o custo acumulado)
+        filaPrioridade = sorted(filaPrioridade, key=lambda x: x.distanciaEstadoFinal+custoAcumulado+1)[::-1]
+
+def buscaAEstrelaAprofundamentoIterativo(estadoInicial,nivelMaximo):
+    filaPrioridade = [estadoInicial]
+    visitados = []
+    while filaPrioridade != []:  # Laço até percorrer todos os estados possíveis
+        estadoAtual = filaPrioridade.pop(0)
+        visitados.append(estadoAtual)
+        custoAcumulado = len(montarCaminho(estadoAtual)) - 1  # Calcula o custo acumulado até o estado atual
+        #Verifica se o nivel máximo foi estourado
+        #Se estoura, aumenta o nível máximo e reinicia o processo
+        if custoAcumulado > nivelMaximo:
+            nivelMaximo += 1
+            filaPrioridade = [estadoInicial]
+            continue
+        proxEstados = definirProxEstados(estadoAtual)  # Define os próximos estados a partir do estado atual
+        # Seleciona a menor distância até a alavanca dentre os estados seguintes
+        for proxEstado in proxEstados:  # Itera pelos próximos estados
+            if proxEstado.posicaoAlavanca == proxEstado.posicaoPessoa:
+                return montarCaminho(proxEstado)
+            else:
+                if proxEstado not in visitados:
+                    filaPrioridade.append(proxEstado)
+        #Organiza a fila de prioridade colocando os mais próximos do objetivo na primeira posição (considerando o custo acumulado)
+        filaPrioridade = sorted(filaPrioridade, key=lambda x: x.distanciaEstadoFinal+custoAcumulado+1)[::-1]
 
 
 
-print(buscaGulosa(EstadoInicial))
-print(buscaAEstrela(EstadoInicial))
-print(buscaAEstrelaAprofundamento(EstadoInicial,1))
+
+if __name__ == '__main__':
+    # Criação do Estado Inicial
+    alavancaPosicao = [0, 0]  # Coordenadas da alavanca na matriz
+    pessoaPosicao = [3, 3]  # Coordenadas da pessoa na matriz
+    EstadoInicial = Estado(pessoaPosicao, alavancaPosicao, None, 4, "Inicio")
+    print(BG(EstadoInicial))
+    print(buscaAEstrela(EstadoInicial))
+    print(buscaAEstrelaAprofundamentoIterativo(EstadoInicial,10))
